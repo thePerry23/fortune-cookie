@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fortune Cookie</title>
+<style>
+  :root {
+    --bg: #2b1a12;
+    --bg2: #4a2c1c;
+    --cookie: #e8b45f;
+    --cookie-dark: #c98f3a;
+    --paper: #fffaf0;
+    --ink: #3a2316;
+    --accent: #c0392b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    padding: 24px 16px;
+    font-family: Georgia, "Times New Roman", serif;
+    color: #f6e7d0;
+    background: radial-gradient(circle at 50% 30%, var(--bg2), var(--bg) 70%);
+    text-align: center;
+  }
+  h1 { font-size: clamp(1.8rem, 5vw, 2.6rem); letter-spacing: 1px; }
+  .hint { opacity: .75; font-size: 1rem; }
+
+  .stage { position: relative; width: 260px; height: 190px; transition: height .4s ease; }
+  .stage.cracked { height: 310px; }
+
+  .cookie {
+    position: absolute;
+    inset: 0;
+    cursor: pointer;
+    background: none;
+    border: none;
+    outline-offset: 8px;
+    transition: transform .2s;
+  }
+  .cookie:hover { transform: scale(1.05) rotate(-2deg); }
+  .half {
+    position: absolute;
+    top: 30px;
+    width: 140px;
+    height: 120px;
+    background: radial-gradient(circle at 35% 30%, #f3cd82, var(--cookie) 55%, var(--cookie-dark));
+    box-shadow: inset -6px -8px 14px rgba(120, 70, 10, .35), 0 8px 18px rgba(0,0,0,.4);
+    transition: transform .6s cubic-bezier(.2,.8,.3,1.2);
+  }
+  .half.left  { left: 10px;  border-radius: 80% 20% 20% 80% / 90% 40% 60% 10%; transform: rotate(-12deg); }
+  .half.right { right: 10px; border-radius: 20% 80% 80% 20% / 40% 90% 10% 60%; transform: rotate(12deg) scaleX(-1); }
+
+  .cracked .half.left  { transform: translate(-55px, 25px) rotate(-38deg); }
+  .cracked .half.right { transform: translate(55px, 25px) rotate(38deg) scaleX(-1); }
+  .shake { animation: shake .45s; }
+  @keyframes shake {
+    0%,100% { transform: rotate(0); }
+    20% { transform: rotate(-8deg); }
+    40% { transform: rotate(8deg); }
+    60% { transform: rotate(-6deg); }
+    80% { transform: rotate(6deg); }
+  }
+
+  .slip {
+    position: absolute;
+    left: 50%;
+    top: 62px;
+    width: 280px;
+    min-height: 84px;
+    padding: 14px 16px;
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 4px;
+    font-size: 1.05rem;
+    line-height: 1.45;
+    box-shadow: 0 6px 16px rgba(0,0,0,.35);
+    transform: translate(-50%, 0) scaleY(0);
+    transform-origin: top;
+    opacity: 0;
+    z-index: 2;
+    transition: transform .5s .25s ease, opacity .3s .25s;
+  }
+  .slip small { display: block; margin-top: 8px; font-size: .8rem; color: var(--accent); letter-spacing: .5px; }
+  .cracked .slip { transform: translate(-50%, 70px) scaleY(1); opacity: 1; }
+
+  button.again {
+    font: inherit;
+    padding: 12px 26px;
+    border: none;
+    border-radius: 999px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,.35);
+    transition: transform .15s, opacity .3s;
+  }
+  button.again:hover { transform: translateY(-2px); }
+  button.again[hidden] { display: none; }
+
+  footer { opacity: .5; font-size: .85rem; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+  <h1>🥠 Fortune Cookie</h1>
+  <p class="hint" id="hint">Tap the cookie to crack it open.</p>
+
+  <div class="stage" id="stage">
+    <button class="cookie" id="cookie" aria-label="Crack the fortune cookie">
+      <span class="half left"></span>
+      <span class="half right"></span>
+    </button>
+    <div class="slip" id="slip" aria-live="polite">
+      <span id="fortune"></span>
+    </div>
+  </div>
+
+  <button class="again" id="again" hidden>Crack another</button>
+  <footer>Just for fun. A little reminder to brighten your day.</footer>
+
+<script>
+  const fortunes = [
+    "A small step today beats a perfect plan tomorrow.",
+    "Someone is quietly rooting for you.",
+    "The bug you are chasing is one line away.",
+    "Good news will arrive when you stop checking for it.",
+    "You will soon find what you thought you had lost.",
+    "Your next idea is better than your last one.",
+    "Patience is a skill, and you are getting better at it.",
+    "A kind word from you will make someone's week.",
+    "Take the longer road today. The view is worth it.",
+    "Rest is productive too.",
+    "An old friend will reach out soon.",
+    "The answer you need is already in your notes.",
+    "Say yes to the invitation you were about to decline.",
+    "Your hard work is noticed, even when it feels invisible.",
+    "Something small and delicious is in your near future.",
+    "Do not fear the blank page. It is just a door.",
+    "A surprise detour will lead to a good story.",
+    "You are closer than you think.",
+    "Trust the process, but double check the spelling.",
+    "Today is a great day to start the thing.",
+    "Effort and sincerity are never wasted.",
+    "A calm mind solves what a rushed one cannot.",
+    "Your curiosity will open an unexpected door.",
+    "Share your work before it feels ready.",
+    "The best time to plant a tree was years ago. The second best is today.",
+    "Laugh at yourself first. It makes everything lighter.",
+    "A challenge that scares you is a chance in disguise.",
+    "Drink some water. Seriously.",
+    "Be the reason someone feels welcome today.",
+    "Great things are built one ordinary day at a time."
+  ];
+
+  const stage = document.getElementById("stage");
+  const cookie = document.getElementById("cookie");
+  const again = document.getElementById("again");
+  const hint = document.getElementById("hint");
+  const fortuneEl = document.getElementById("fortune");
+  let last = -1;
+
+  function pickFortune() {
+    let i;
+    do { i = Math.floor(Math.random() * fortunes.length); } while (i === last && fortunes.length > 1);
+    last = i;
+    return fortunes[i];
+  }
+
+  function crack() {
+    if (stage.classList.contains("cracked")) return;
+    cookie.classList.add("shake");
+    setTimeout(() => {
+      cookie.classList.remove("shake");
+      fortuneEl.textContent = pickFortune();
+      stage.classList.add("cracked");
+      hint.textContent = "Your fortune:";
+      again.hidden = false;
+    }, 450);
+  }
+
+  function reset() {
+    stage.classList.remove("cracked");
+    hint.textContent = "Tap the cookie to crack it open.";
+    again.hidden = true;
+  }
+
+  cookie.addEventListener("click", crack);
+  again.addEventListener("click", reset);
+</script>
+</body>
+</html>
